@@ -1,128 +1,112 @@
-# ⚓ Battaglia Navale — Progetto FSL TEPSIT
+# ⚓ Battaglia Navale Multiplayer
 
-Applicazione **client-server** in Python per giocare a Battaglia Navale in rete locale via **TCP**.
+Progetto sviluppato in Python come applicazione client-server per il gioco della Battaglia Navale in rete locale tramite protocollo TCP.
+
+L'applicazione permette a due giocatori di sfidarsi in tempo reale, con gestione completa della partita, chat integrata, statistiche persistenti e interfaccia grafica realizzata con Tkinter.
+
+---
+
+## Caratteristiche principali
+
+- Comunicazione client-server tramite socket TCP
+- Interfaccia grafica avanzata sviluppata con Tkinter
+- Posizionamento manuale o automatico della flotta
+- Gestione dei turni e controllo delle regole di gioco
+- Sistema di chat in tempo reale tra i giocatori
+- Salvataggio automatico delle statistiche in formato JSON
+- Rilevamento delle disconnessioni
+- Effetti grafici, animazioni e audio integrati
+- Classifica persistente dei giocatori
 
 ---
 
 ## Struttura del progetto
 
-```
-battaglia_navale/
-│
-├── server.py        → Gestisce la partita, i turni e le statistiche
-├── client.py        → Interfaccia utente a terminale per ogni giocatore
-├── game_logic.py    → Logica di gioco condivisa (griglia, colpi, vittoria)
-├── statistiche.json → Creato automaticamente dopo la prima partita
-└── README.md
-```
+text battaglia_navale/ │ ├── server.py ├── client_gui.py ├── game_logic.py ├── statistiche.json └── README.md 
+
+### server.py
+Gestisce la connessione dei client, i turni di gioco, il controllo delle regole e il salvataggio delle statistiche.
+
+### client_gui.py
+Interfaccia grafica del giocatore con gestione della griglia, effetti visivi, chat e interazione con il server.
+
+### game_logic.py
+Contiene la logica condivisa del gioco: gestione delle navi, validazione dei colpi, affondamenti e condizioni di vittoria.
 
 ---
 
-## Requisiti
+## Tecnologie utilizzate
 
-- **Python 3.10+** (usa la sintassi `list[int]` per i type hint)
-- Nessuna libreria esterna richiesta (solo moduli standard: `socket`, `threading`, `json`)
+- Python 3.10+
+- Socket TCP
+- Threading
+- JSON
+- Tkinter
 
----
-
-## Come avviare il gioco
-
-### 1. Avvia il server (una sola volta, su una macchina)
-
-```bash
-python server.py
-```
-
-Il server rimane in ascolto su `0.0.0.0:5000` e aspetta **due client**.
-
-### 2. Avvia il client (su due terminali / macchine diverse)
-
-```bash
-python client.py
-```
-
-> Se il server è su un'altra macchina, modifica la riga in `client.py`:
-> ```python
-> SERVER_HOST = "192.168.x.x"   # IP del server
-> ```
+Nessuna libreria esterna è necessaria.
 
 ---
 
-## Come si gioca
+## Avvio del progetto
 
-1. Inserisci il tuo nome
-2. Scegli il posizionamento delle navi (manuale o automatico)
-3. Aspetta che entrambi i giocatori siano pronti
-4. Quando è il tuo turno, digita `<riga> <colonna>` per sparare (es. `3 5`)
-5. Per mandare un messaggio in chat: `chat Ciao!`
+### Avvio del server
 
----
+bash python server.py 
 
-## Flotta
+### Avvio del client
 
-| Nave               | Lunghezza | Quantità |
-|--------------------|-----------|----------|
-| Portaerei          | 5         | 1        |
-| Corazzata          | 4         | 1        |
-| Incrociatore       | 3         | 2        |
-| Cacciatorpediniere | 2         | 3        |
+bash python client_gui.py 
+
+Se il server viene eseguito su un altro dispositivo della rete, è sufficiente modificare l'indirizzo IP del server nel client.
 
 ---
 
-## Funzionalità implementate
+## Funzionamento
 
-| Funzionalità                  | Stato |
-|-------------------------------|-------|
-| Comunicazione TCP client-server | ✅   |
-| Gestione turni                | ✅    |
-| Verifica colpi (acqua/colpito/affondato) | ✅ |
-| Condizione di vittoria        | ✅    |
-| Chat integrata tra giocatori  | ✅    |
-| Salvataggio statistiche (JSON)| ✅    |
-| Gestione disconnessione       | ✅    |
-| Posizionamento manuale/automatico | ✅ |
-| Interfaccia colorata a terminale | ✅  |
-
----
-
-## Protocollo applicativo (messaggi JSON)
-
-Tutti i messaggi sono oggetti JSON terminati da `\n`, scambiati via TCP.
-
-| `tipo`            | Direzione       | Descrizione                              |
-|-------------------|-----------------|------------------------------------------|
-| `nome`            | client → server | Registrazione con il proprio nome        |
-| `ok`              | server → client | Conferma connessione                     |
-| `avversario`      | server → client | Nome dell'avversario connesso            |
-| `richiesta_griglia` | server → client | Richiesta di invio della griglia        |
-| `griglia`         | client → server | Griglia con posizione delle navi         |
-| `inizio`          | server → client | Segnale di inizio partita                |
-| `colpo`           | client → server | Coordinate del colpo `{riga, col}`       |
-| `risultato_colpo` | server → client | Esito del colpo (acqua/colpito/affondato)|
-| `turno`           | server → client | Aggiornamento del turno attivo           |
-| `chat`            | bidirezionale   | Messaggio di chat `{testo}`              |
-| `fine_partita`    | server → client | Fine partita con nome del vincitore      |
-| `disconnessione`  | server → client | Avversario disconnesso                   |
-| `errore`          | server → client | Errore generico                          |
+1. Connessione dei due giocatori al server.
+2. Inserimento del nome utente.
+3. Posizionamento della flotta.
+4. Avvio della partita.
+5. Alternanza dei turni di attacco.
+6. Vittoria del giocatore che affonda tutte le navi avversarie.
 
 ---
 
 ## Statistiche
 
-Dopo ogni partita, il file `statistiche.json` viene aggiornato automaticamente:
+Al termine di ogni partita vengono aggiornate automaticamente:
 
-```json
-{
-  "Mario": { "vittorie": 3, "sconfitte": 1, "partite": 4 },
-  "Luigi": { "vittorie": 1, "sconfitte": 3, "partite": 4 }
-}
-```
+- Vittorie
+- Sconfitte
+- Partite giocate
+
+I dati vengono salvati nel file statistiche.json.
+
+---
+
+## Aspetti tecnici
+
+Il progetto segue una chiara separazione tra:
+
+- Logica di gioco
+- Interfaccia grafica
+- Comunicazione di rete
+
+Il server utilizza thread separati per la gestione simultanea dei giocatori e meccanismi di sincronizzazione per proteggere lo stato condiviso della partita.
+
+La scelta del protocollo TCP garantisce affidabilità, ordine dei messaggi e integrità della comunicazione tra client e server.
 
 ---
 
 ## Note per il colloquio orale
 
-- **`game_logic.py`** è completamente separato dalla rete → rispetta la separazione tra logica e comunicazione
-- Il server usa **`threading`**: un thread per giocatore + `threading.Lock` per accesso sicuro allo stato condiviso
+- **game_logic.py** è completamente separato dalla rete → rispetta la separazione tra logica e comunicazione
+- Il server usa **threading**: un thread per giocatore + threading.Lock per accesso sicuro allo stato condiviso
 - La connessione TCP garantisce **ordine** e **affidabilità** dei pacchetti (a differenza di UDP)
-- La **disconnessione** viene rilevata quando `recv()` restituisce `None` o lancia un'eccezione
+- La **disconnessione** viene rilevata quando recv() restituisce None o lancia un'eccezione
+
+---
+
+## Autore
+
+Progetto realizzato per il corso di Telecomunicazioni e Sistemi (TEPSIT) come applicazione distribuita client-server in Python.

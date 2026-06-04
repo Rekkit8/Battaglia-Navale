@@ -1,112 +1,163 @@
-# ⚓ Battaglia Navale Multiplayer
 
-Progetto sviluppato in Python come applicazione client-server per il gioco della Battaglia Navale in rete locale tramite protocollo TCP.
+# ⚓ Battaglia Navale — Documentazione del Progetto
 
-L'applicazione permette a due giocatori di sfidarsi in tempo reale, con gestione completa della partita, chat integrata, statistiche persistenti e interfaccia grafica realizzata con Tkinter.
-
----
-
-## Caratteristiche principali
-
-- Comunicazione client-server tramite socket TCP
-- Interfaccia grafica avanzata sviluppata con Tkinter
-- Posizionamento manuale o automatico della flotta
-- Gestione dei turni e controllo delle regole di gioco
-- Sistema di chat in tempo reale tra i giocatori
-- Salvataggio automatico delle statistiche in formato JSON
-- Rilevamento delle disconnessioni
-- Effetti grafici, animazioni e audio integrati
-- Classifica persistente dei giocatori
+Gioco multiplayer a turni basato su connessione TCP, con interfaccia grafica Tkinter, effetti sonori sintetizzati e salvataggio delle statistiche in JSON.
 
 ---
 
-## Struttura del progetto
+## Struttura del Progetto
 
-text battaglia_navale/ │ ├── server.py ├── client_gui.py ├── game_logic.py ├── statistiche.json └── README.md 
-
-### server.py
-Gestisce la connessione dei client, i turni di gioco, il controllo delle regole e il salvataggio delle statistiche.
-
-### client_gui.py
-Interfaccia grafica del giocatore con gestione della griglia, effetti visivi, chat e interazione con il server.
-
-### game_logic.py
-Contiene la logica condivisa del gioco: gestione delle navi, validazione dei colpi, affondamenti e condizioni di vittoria.
+```
+battaglia_navale/
+├── server.py       # Server TCP: coordina la partita tra due client
+├── client.py       # Client GUI: interfaccia grafica Tkinter "Naval War Room"
+├── game_logic.py   # Logica di gioco pura (navi, colpi, vittoria)
+└── statistiche.json  # Generato automaticamente al termine di ogni partita
+```
 
 ---
 
-## Tecnologie utilizzate
+## Avvio
 
-- Python 3.10+
-- Socket TCP
-- Threading
-- JSON
-- Tkinter
+### 1 — Avviare il server
+```bash
+python server.py
+```
+Il server si mette in ascolto su `0.0.0.0:50007` e attende due giocatori.
 
-Nessuna libreria esterna è necessaria.
+### 2 — Avviare i client (su due terminali o macchine diverse)
+```bash
+python client.py
+```
+Dalla schermata di login inserire nome, indirizzo IP del server e porta, poi premere **CONNETTI**.
 
----
-
-## Avvio del progetto
-
-### Avvio del server
-
-bash python server.py 
-
-### Avvio del client
-
-bash python client_gui.py 
-
-Se il server viene eseguito su un altro dispositivo della rete, è sufficiente modificare l'indirizzo IP del server nel client.
+> Per una partita in locale entrambi i client usano `127.0.0.1:50007`.
 
 ---
 
-## Funzionamento
+## Architettura
 
-1. Connessione dei due giocatori al server.
-2. Inserimento del nome utente.
-3. Posizionamento della flotta.
-4. Avvio della partita.
-5. Alternanza dei turni di attacco.
-6. Vittoria del giocatore che affonda tutte le navi avversarie.
+### `game_logic.py` — Logica pura
+Modulo indipendente dalla rete che definisce le strutture dati e le regole di gioco.
 
----
-
-## Statistiche
-
-Al termine di ogni partita vengono aggiornate automaticamente:
-
-- Vittorie
-- Sconfitte
-- Partite giocate
-
-I dati vengono salvati nel file statistiche.json.
+| Elemento | Descrizione |
+|---|---|
+| `Griglia` | Classe che rappresenta la griglia 10×10 di un giocatore |
+| `ACQUA / NAVE / COLPITO / MANCATO` | Costanti per lo stato di ogni cella |
+| `verifica_colpo()` | Applica un colpo e restituisce `acqua`, `colpito` o `gia_colpito` |
+| `is_affondata()` | Flood-fill che controlla se la nave colpita è completamente affondata |
+| `tutte_affondate()` | Controlla la condizione di vittoria |
+| `FLOTTA` | Lista delle navi standard: Portaerei (5), Corazzata (4), 2× Incrociatore (3), 3× Cacciatorpediniere (2) |
 
 ---
 
-## Aspetti tecnici
+### `server.py` — Server TCP multi-thread
 
-Il progetto segue una chiara separazione tra:
+Il server accetta esattamente **due connessioni** e avvia un thread per ciascun giocatore.
 
-- Logica di gioco
-- Interfaccia grafica
-- Comunicazione di rete
+**Fasi della partita:**
 
-Il server utilizza thread separati per la gestione simultanea dei giocatori e meccanismi di sincronizzazione per proteggere lo stato condiviso della partita.
+1. **Registrazione** — ricezione del nome di ogni giocatore
+2. **Posizionamento** — ricezione della griglia (`richiesta_griglia` → `griglia`)
+3. **Loop di gioco** — gestione dei messaggi `colpo` e `chat` fino alla condizione di vittoria o disconnessione
 
-La scelta del protocollo TCP garantisce affidabilità, ordine dei messaggi e integrità della comunicazione tra client e server.
+**Stato condiviso (`StatoPartita`):**
+
+```python
+stato.conn       # socket dei due giocatori [0, 1]
+stato.nomi       # nomi registrati
+stato.griglie    # oggetti Griglia di ciascun giocatore
+stato.turno      # indice del giocatore corrente (0 o 1)
+stato.lock       # threading.Lock per accesso esclusivo allo stato
+```
+
+**Gestione dei turni:** dopo ogni colpo in acqua il turno passa all'avversario. Un colpo a segno (anche con affondamento) mantiene il turno al giocatore corrente.
+
+**Statistiche:** al termine della partita `aggiorna_stats()` incrementa vittorie/sconfitte e salva in `statistiche.json`.
 
 ---
 
-## Note per il colloquio orale
+### `client.py` — Client GUI Tkinter
 
-- **game_logic.py** è completamente separato dalla rete → rispetta la separazione tra logica e comunicazione
-- Il server usa **threading**: un thread per giocatore + threading.Lock per accesso sicuro allo stato condiviso
-- La connessione TCP garantisce **ordine** e **affidabilità** dei pacchetti (a differenza di UDP)
-- La **disconnessione** viene rilevata quando recv() restituisce None o lancia un'eccezione
+L'interfaccia è suddivisa in tre schermate, con transizioni in dissolvenza (`fade_transition`).
+
+| Schermata | Classe/Funzione | Descrizione |
+|---|---|---|
+| Login | `_build_login()` | Inserimento nome, IP, porta; accesso alla classifica |
+| Posizionamento | `_build_placement()` | Drag & drop navi sulla griglia, auto-posizionamento, rotazione |
+| Partita | `_build_game()` | Due griglie affiancate, log eventi, chat in tempo reale |
+
+**Componenti grafici principali:**
+
+- `LogoCanvas` — logo animato con onde, silhouette nave, radar rotante ed effetto glitch sul titolo
+- `GridCanvas` — griglia tag-based con shimmer dell'acqua, sistema di particelle per esplosioni e spruzzi, anteprima posizionamento navi
+- `StatusBar` — barra animata con luci lampeggianti e testo di stato
+- `StatsPanel` — contatori in tempo reale di colpi, acqua e navi affondate
+
+**Audio sintetizzato:** tutti i suoni (`explosion`, `splash`, `sunk`, `win`, `lose`, ecc.) sono generati via PCM 16-bit puro, senza dipendenze esterne. La riproduzione avviene in thread separati tramite `winsound` (Windows) o `aplay` (Linux).
+
+**Rete:** il client usa un thread dedicato `_listen_loop()` per ricevere i messaggi del server in modo non bloccante, delegando l'aggiornamento della GUI al thread principale via `root.after()`.
 
 ---
 
-## Autore
+## Protocollo di Comunicazione
 
-Progetto realizzato per il corso di Telecomunicazioni e Sistemi (TEPSIT) come applicazione distribuita client-server in Python.
+Tutti i messaggi sono dizionari JSON terminati da `\n`, inviati su TCP.
+
+| Tipo | Direzione | Campi principali |
+|---|---|---|
+| `nome` | Client → Server | `nome` |
+| `ok` | Server → Client | `messaggio` |
+| `avversario` | Server → Client | `nome` |
+| `richiesta_griglia` | Server → Client | — |
+| `griglia` | Client → Server | `celle` (lista 10×10) |
+| `inizio` | Server → Client | `turno`, `messaggio` |
+| `colpo` | Client → Server | `riga`, `col` |
+| `risultato_colpo` | Server → Client (broadcast) | `riga`, `col`, `esito`, `tiratore`, `nave`\* |
+| `turno` | Server → Client (broadcast) | `giocatore` |
+| `fine_partita` | Server → Client (broadcast) | `vincitore`, `messaggio` |
+| `chat` | Bidirezionale | `testo` / `mittente`, `ora` |
+| `disconnessione` | Server → Client | `messaggio` |
+
+\* Il campo `nave` è presente solo quando `esito == "affondato"` e contiene la lista di coordinate della nave.
+
+---
+
+## Dipendenze
+
+| Libreria | Uso |
+|---|---|
+| `tkinter` | Interfaccia grafica (stdlib) |
+| `socket` | Comunicazione TCP (stdlib) |
+| `threading` | Concorrenza server e client (stdlib) |
+| `json` | Protocollo e statistiche (stdlib) |
+| `wave`, `struct`, `io` | Sintesi audio PCM (stdlib) |
+| `winsound` *(opzionale)* | Riproduzione audio su Windows |
+| `aplay` *(opzionale)* | Riproduzione audio su Linux |
+
+Nessuna dipendenza esterna: il progetto gira con la sola stdlib di Python 3.10+.
+
+---
+
+## Note per il Colloquio Orale
+
+### Separazione delle responsabilità
+`game_logic.py` è completamente indipendente dalla rete e non importa alcun modulo di comunicazione. Questo rispetta il principio di separazione tra logica di dominio e infrastruttura: il modulo può essere testato in isolamento, riusato da altri frontend (es. una versione a riga di comando) e modificato senza toccare il codice di rete.
+
+### Threading nel server
+Il server usa un modello **un thread per giocatore**: ogni connessione è gestita da un thread indipendente (`gestisci_giocatore`), il che permette di leggere da entrambe le socket in parallelo senza bloccare il server in attesa. Lo stato condiviso (`StatoPartita`) è protetto da un `threading.Lock` che garantisce l'accesso esclusivo alle sezioni critiche (verifica del turno, aggiornamento della griglia, controllo della vittoria), prevenendo race condition.
+
+### TCP vs UDP
+La scelta del protocollo TCP (SOCK_STREAM) garantisce:
+- **Ordine** dei pacchetti — i messaggi arrivano nella stessa sequenza in cui sono stati inviati, fondamentale per la coerenza dei turni
+- **Affidabilità** — nessun pacchetto viene silenziosamente perso (diversamente da UDP/SOCK_DGRAM)
+- **Stream orientato alla connessione** — il server rileva immediatamente se un client si disconnette
+
+### Rilevamento della disconnessione
+Quando un client si disconnette improvvisamente (crash, chiusura finestra), la chiamata `conn.recv()` restituisce `b""` (buffer vuoto) oppure solleva un'eccezione. In entrambi i casi la funzione `ricevi()` restituisce `None`, che `gestisci_giocatore()` interpreta come segnale di disconnessione e delega a `gestisci_disconnessione()` per notificare l'avversario e chiudere la sessione in modo pulito.
+
+### Aggiornamento thread-safe della GUI
+In Tkinter solo il thread principale può modificare i widget. Il thread di ascolto (`_listen_loop`) usa `root.after(0, callback)` per postare ogni aggiornamento nella coda degli eventi di Tkinter, evitando race condition sull'interfaccia grafica.
+
+### Flood-fill in `is_affondata()`
+Dopo ogni colpo a segno, la funzione esplora ricorsivamente le celle adiacenti (su/giù/sinistra/destra) per trovare tutti i segmenti della nave. Se nessun segmento è ancora `NAVE` (intatto), la nave è affondata. Questo approccio funziona correttamente per navi di qualsiasi forma lineare senza dover memorizzare esplicitamente la posizione delle navi al momento del piazzamento.
